@@ -1,7 +1,7 @@
 About
 ----- 
 
-**drawio-desktop** is a **diagrams.net** desktop app based on [Electron](https://electronjs.org/). draw.io is the old name for diagrams.net, we just don't want the hassle of changing all the binary's names.
+**drawio-desktop** is a diagramming and whiteboarding desktop app based on [Electron](https://electronjs.org/) that wraps the [core draw.io editor](https://github.com/jgraph/drawio).
 
 Download built binaries from the [releases section](https://github.com/jgraph/drawio-desktop/releases).
 
@@ -23,7 +23,7 @@ To run this:
 1. `npm install` (in the root directory of this repo)
 2. `npm install` (in the drawio directory of this repo `drawio/src/main/webapp`)
 3. export DRAWIO_ENV=dev if you want to develop/debug in dev mode.
-4. `npm start` runs the app.
+4. `npm start` _in the root directory of this repo_ runs the app. For debugging, use `npm start --enable-logging`.
 
 To release:
 1. Update the draw.io sub-module and push the change. Add version tag before pushing to origin.
@@ -36,3 +36,19 @@ To release:
 
 
 *Note*: In Windows release, when using both x64 and is32 as arch, the result is one big file with both archs. This is why we split them.
+
+Open-source, not open-contribution
+----------------------------------
+
+[Similar to SQLite](https://www.sqlite.org/copyright.html), diagrams.net is open
+source but closed to contributions.
+
+The level of complexity of this project means that even simple changes 
+can break a _lot_ of other moving parts. The amount of testing required 
+is far more than it first seems. If we were to receive a PR, we'd have 
+to basically throw it away and write it how we want it to be implemented.
+
+We are grateful for community involvement, bug reports, & feature requests. We do
+not wish to come off as anything but welcoming, however, we've
+made the decision to keep this project closed to contributions for 
+the long term viability of the project.
