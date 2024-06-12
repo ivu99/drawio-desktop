@@ -7,7 +7,6 @@
     "!**/WEB-INF{,/**}"
   ],
   "directories": {
-    "app": "./drawio/src/main/webapp",
     "output": "./dist/"
   },
   "npmRebuild": false,
@@ -41,14 +40,19 @@
     "artifactName": "${productName}-${version}-windows-installer.${ext}",
   	"oneClick": false,
     "perMachine": true,
-    "allowToChangeInstallationDirectory": true
+    "allowToChangeInstallationDirectory": true,
+    "runAfterFinish": false,
+    "createDesktopShortcut": false
   },
   "msi": {
-    "artifactName": "${productName}-${version}.${ext}"
+    "artifactName": "${productName}-${version}.${ext}",
+    "runAfterFinish": false,
+    "createDesktopShortcut": false
   },
   "portable": {
     "artifactName": "${productName}-${version}-windows-no-installer.${ext}"
   },
+  "afterPack": "build/fuses.cjs",
   "fileAssociations": [
 	  {
 	  	"ext": "drawio",
