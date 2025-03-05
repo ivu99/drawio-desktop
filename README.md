@@ -1,7 +1,7 @@
 About
 ----- 
 
-**drawio-desktop** is a diagramming and whiteboarding desktop app based on [Electron](https://electronjs.org/) that wraps the [core draw.io editor](https://github.com/jgraph/drawio).
+**drawio-desktop** is a diagramming desktop app based on [Electron](https://electronjs.org/) that wraps the [core draw.io editor](https://github.com/jgraph/drawio).
 
 Download built binaries from the [releases section](https://github.com/jgraph/drawio-desktop/releases).
 
@@ -19,9 +19,9 @@ Security and isolating the app are the primarily objectives of draw.io desktop. 
 Support
 -------
 
-Support is provided on a reasonable business constraints basis, but without anything contractually binding. All support is provided via this repo. There is no private ticketing support.
+Support is provided on a reasonable business constraints basis, but without anything contractually binding. All support is provided via this repo. There is no private ticketing support for non-paying users.
 
-Purchasing draw.io for Confluence or Jira does not entitle you to commercial support for draw.io desktop. The draw.io integrations for Atlassian are sold by Seibert Media, they have no involvement with this project.
+Purchasing draw.io for Confluence or Jira does not entitle you to commercial support for draw.io desktop, unless you have a paid advanced (premium) edition of draw.io for Confluence Cloud.
 
 Developing
 ----------
@@ -56,7 +56,7 @@ Local Storage and Session Storage is stored in the AppData folder:
 Not open-contribution
 ---------------------
 
-draw.io is closed to contributions.
+draw.io is closed to contributions (unless a maintainer permits it, which is extremely rare).
 
 The level of complexity of this project means that even simple changes 
 can break a _lot_ of other moving parts. The amount of testing required 

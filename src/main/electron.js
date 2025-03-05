@@ -10,7 +10,7 @@ import log from'electron-log';
 import { program } from 'commander';
 import elecUpPkg from 'electron-updater';
 const {autoUpdater} = elecUpPkg;
-import {PDFDocument} from 'pdf-lib';
+import {PDFDocument} from '@cantoo/pdf-lib';
 import Store from 'electron-store';
 const store = new Store();
 import ProgressBar from 'electron-progressbar';
@@ -231,35 +231,28 @@ function createWindow (opt = {})
 
 	mainWindow.on('maximize', function()
 	{
-		rememberWinSize(mainWindow);
 		mainWindow.webContents.send('maximize')
 	});
 
 	mainWindow.on('unmaximize', function()
 	{
-		rememberWinSize(mainWindow);
 		mainWindow.webContents.send('unmaximize')
 	});
 
 	mainWindow.on('resize', function()
 	{
-		rememberWinSize(mainWindow);
 		mainWindow.webContents.send('resize')
 	});
 
-	mainWindow.on('move', function()
-	{
-		rememberWinSize(mainWindow);
-	});
-
-	let uniqueIsModifiedId;
+	let uniqueIsModifiedId, modifiedModalOpen = false;
 
 	ipcMain.on('isModified-result', async (e, data) =>
 	{
-		if (!validateSender(e.senderFrame) || uniqueIsModifiedId != data.uniqueId) return null;
+		if (!validateSender(e.senderFrame) || uniqueIsModifiedId != data.uniqueId || modifiedModalOpen) return null;
 
 		if (data.isModified)
 		{
+			modifiedModalOpen = true;
 			// Can't use async function here because it crashes on Linux when win.destroy is called
 			let response = dialog.showMessageBoxSync(
 				mainWindow,
@@ -293,6 +286,7 @@ function createWindow (opt = {})
 			else
 			{
 				cmdQPressed = false;
+				modifiedModalOpen = false;
 			}
 		}
 		else
@@ -318,6 +312,8 @@ function createWindow (opt = {})
 			contents.send('isModified', uniqueIsModifiedId);
 			event.preventDefault();
 		}
+
+		rememberWinSize(mainWindow);
 	})
 
 	// Emitted when the window is closed.
@@ -408,7 +404,7 @@ app.whenReady().then(() =>
         argv.unshift(null)
     }
 
-	var validFormatRegExp = /^(pdf|svg|png|jpeg|jpg|vsdx|xml)$/;
+	var validFormatRegExp = /^(pdf|svg|png|jpeg|jpg|xml)$/;
 	var themeRegExp = /^(dark|light)$/;
 	var linkTargetRegExp = /^(auto|new-win|same-win)$/;
 	
@@ -429,7 +425,7 @@ app.whenReady().then(() =>
 	        .option('-r, --recursive', 'for a folder input, recursively convert all files in sub-folders also')
 	        .option('-o, --output <output file/folder>', 'specify the output file/folder. If omitted, the input file name is used for output with the specified format as extension')
 	        .option('-f, --format <format>',
-			    'if output file name extension is specified, this option is ignored (file type is determined from output extension, possible export formats are pdf, png, jpg, svg, vsdx, and xml)',
+			    'if output file name extension is specified, this option is ignored (file type is determined from output extension, possible export formats are pdf, png, jpg, svg, and xml)',
 			    validFormatRegExp, 'pdf')
 			.option('-q, --quality <quality>',
 				'output image quality for JPEG (default: 90)', parseInt)
@@ -439,6 +435,8 @@ app.whenReady().then(() =>
 				'includes a copy of the diagram (for PNG, SVG and PDF formats only)')
 			.option('--embed-svg-images',
 				'Embed Images in SVG file (for SVG format only)')
+			.option('--embed-svg-fonts <true/false>',
+				'Embed Fonts in SVG file (for SVG format only). Default is true', function(x){return x === 'true'}, true)
 			.option('-b, --border <border>',
 				'sets the border width around the diagram (default: 0)', parseInt)
 			.option('-s, --scale <scale>',
@@ -462,7 +460,7 @@ app.whenReady().then(() =>
 			.option('-z, --zoom <zoom>',
 				'scales the application interface', parseFloat)
 			.option('--svg-theme <theme>',
-				'Theme of the exported SVG image (dark, light [default])', themeRegExp, 'light')
+				'Theme of the exported SVG image (dark, light, auto [default])', themeRegExp, 'auto')
 			.option('--svg-links-target <target>',
 				'Target of links in the exported SVG image (auto [default], new-win, same-win)', linkTargetRegExp, 'auto')
 			.option('--enable-plugins',
@@ -561,7 +559,6 @@ app.whenReady().then(() =>
 				format: format,
 				w: options.width > 0 ? options.width : null,
 				h: options.height > 0 ? options.height : null,
-				pageMargin: options.border > 0 ? options.border : 0,
 				bg: options.transparent ? 'none' : '#ffffff',
 				from: from,
 				to: to,
@@ -569,12 +566,24 @@ app.whenReady().then(() =>
 				scale: (options.scale || 1),
 				embedXml: options.embedDiagram? '1' : '0',
 				embedImages: options.embedSvgImages? '1' : '0',
+				embedFonts: options.embedSvgFonts? '1' : '0',
 				jpegQuality: options.quality,
 				uncompressed: options.uncompressed,
 				theme: options.svgTheme,
 				linkTarget: options.svgLinksTarget,
 				crop: (options.crop && format == 'pdf') ? '1' : '0'
 			};
+
+			options.border = options.border > 0 ? options.border : 0;
+
+			if (format === 'pdf') 
+			{
+				expArgs.pageMargin = options.border;
+			}
+			else
+			{
+				expArgs.border = options.border;
+			}
 
 			if (options.layers)
 			{
@@ -596,7 +605,6 @@ app.whenReady().then(() =>
 				
 				try
 				{
-					console.log('Exporting ', paths);
 					inStat = fs.statSync(paths[0]);
 				}
 				catch(e)
@@ -762,7 +770,7 @@ app.whenReady().then(() =>
 														}
 													}
 													
-													fs.writeFileSync(realFileName, data, format == 'vsdx'? 'base64' : null, { flag: 'wx' });
+													fs.writeFileSync(realFileName, data, null, { flag: 'wx' });
 													console.log(curFile + ' -> ' + realFileName);
 												}
 												catch(e)
@@ -980,13 +988,76 @@ app.whenReady().then(() =>
 			})
 		}
 	};
-	
+
+	var zoomSteps = [0.25, 0.33, 0.5, 0.67, 0.75, 0.8, 0.9, 1,
+		1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5];
+
+	// Zooms to the next zoom step
+	function zoomInFn()
+	{
+		var zoomFactor = win.webContents.zoomFactor;
+		var newZoomFactor = zoomSteps[zoomSteps.length - 1];
+
+		for (var i = 0; i < zoomSteps.length; i++)
+		{
+			if (zoomSteps[i] - zoomFactor > 0.01)
+			{
+				newZoomFactor = zoomSteps[i];
+				break;
+			}
+		}
+
+		win.webContents.zoomFactor = newZoomFactor;
+	};
+
+	// Zooms to the previous zoom step
+	function zoomOutFn()
+	{
+		var zoomFactor = win.webContents.zoomFactor;
+		var newZoomFactor = zoomSteps[0];
+
+		for (var i = zoomSteps.length - 1; i >= 0; i--)
+		{
+			if (zoomSteps[i] - zoomFactor < -0.01)
+			{
+				newZoomFactor = zoomSteps[i];
+				break;
+			}
+		}
+
+		win.webContents.zoomFactor = newZoomFactor;
+	};
+
+	// Resets the zoom factor
+	function resetZoomFn()
+	{
+		win.webContents.zoomFactor = 1;
+	};
+
 	let checkForUpdates = {
 		label: 'Check for updates',
 		click: checkForUpdatesFn
 	}
 
+	let zoomIn = {
+		label: 'Zoom In',
+		click: zoomInFn
+	};
+
+	let zoomOut = {
+		label: 'Zoom Out',
+		click: zoomOutFn
+	};
+
+	let resetZoom = {
+		label: 'Actual Size',
+		click: resetZoomFn
+	};
+
 	ipcMain.on('checkForUpdates', checkForUpdatesFn);
+	ipcMain.on('zoomIn', zoomInFn);
+	ipcMain.on('zoomOut', zoomOutFn);
+	ipcMain.on('resetZoom', resetZoomFn);
 
 	if (isMac)
 	{
@@ -1002,11 +1073,15 @@ app.whenReady().then(() =>
 	          click() { shell.openExternal('https://github.com/jgraph/drawio-desktop/issues'); }
 			},
 			checkForUpdates,
+	        { type: 'separator' },
+			resetZoom,
+			zoomIn,
+			zoomOut,
 			{ type: 'separator' },
 	        { role: 'hide' },
 	        { role: 'hideothers' },
 	        { role: 'unhide' },
-	        { type: 'separator' },
+			{ type: 'separator' },
 	        { role: 'quit' }
 	      ]
 	    }, {
@@ -1426,71 +1501,6 @@ function writePngWithText(origBuff, key, text, compressed, base64encoded)
 	}
 }
 
-//TODO Create a lightweight html file similar to export3.html for exporting to vsdx
-function exportVsdx(event, args, directFinalize)
-{
-	let win = createWindow({
-		show : false
-	});
-
-	let loadEvtCount = 0;
-			
-	function loadFinished(e)
-	{
-		if (e != null && e.senderFrame != null &&
-			!validateSender(e.senderFrame)) return null;
-
-		loadEvtCount++;
-		
-		if (loadEvtCount == 2)
-		{
-	    	win.webContents.send('export-vsdx', args);
-	    	
-	        ipcMain.once('export-vsdx-finished', (e, data) =>
-			{
-				if (!validateSender(e.senderFrame)) return null;
-
-				var hasError = false;
-				
-				if (data == null)
-				{
-					hasError = true;
-				}
-				
-				//Set finalize here since it is call in the reply below
-				function finalize()
-				{
-					win.destroy();
-				};
-				
-				if (directFinalize === true)
-				{
-					event.finalize = finalize;
-				}
-				else
-				{
-					//Destroy the window after response being received by caller
-					ipcMain.once('export-finalize', finalize);
-				}
-				
-				if (hasError)
-				{
-					event.reply('export-error');
-				}
-				else
-				{
-					event.reply('export-success', data);
-				}
-			});
-		}
-	}
-	
-	//Order of these two events is not guaranteed, so wait for them async.
-	//TOOD There is still a chance we catch another window 'app-load-finished' if user created multiple windows quickly 
-	ipcMain.once('app-load-finished', loadFinished);
-    win.webContents.on('did-finish-load', loadFinished);
-};
-
 async function mergePdfs(pdfFiles, xml)
 {
 	if (pdfFiles.length == 1)
@@ -1548,12 +1558,6 @@ function exportDiagram(event, args, directFinalize)
 	if (event != null && event.senderFrame != null &&
 		!validateSender(event.senderFrame)) return null;
 
-	if (args.format == 'vsdx')
-	{
-		exportVsdx(event, args, directFinalize);
-		return;
-	}
-	
 	var browser = null;
 	
 	try
@@ -1699,8 +1703,15 @@ function exportDiagram(event, args, directFinalize)
 					{
 						pdfOptions = {
 							scaleFactor: args.pageScale,
-							preferCSSPageSize: true,
-							printBackground: true
+							printBackground: true,
+							pageSize : {
+								width: args.pageWidth * MICRON_TO_PIXEL,
+								//This height adjustment fixes the output. TODO Test more cases
+								height: (args.pageHeight * 1.025) * MICRON_TO_PIXEL
+							},
+							margins: {
+								marginType: 'none' // no margin
+							}
 						};
 						 
 						contents.print(pdfOptions, (success, errorType) => 
